@@ -22,7 +22,7 @@ Z0 = np.sqrt( constants.mu_0 / constants.epsilon_0 )
 class Cone(object):
     """Cone with a specific height, diameter at center and side wall angle
     (in degrees)."""
-    
+
     def __init__(self, diameter_center, height, angle_degrees):
         self.diameter_center = diameter_center
         self.height = height
@@ -30,12 +30,12 @@ class Cone(object):
         self._angle = np.deg2rad(angle_degrees)
         self._rad = diameter_center/2.
         self._rad0 = self._rad - (height/2. * np.tan(self._angle))
-        
+
     def __repr__(self):
         return 'Cone(d={}, h={}, angle={})'.format(self.diameter_center,
                                                    self.height,
                                                    self.angle_degrees)
-    
+
     def diameter_at_height(self, height):
         """Returns the diameter of the cone at a specific height.
         """
@@ -138,7 +138,7 @@ class PP_DensityIntegration(JCM_Post_Process):
 class PP_Absorption(PP_DensityIntegration):
     STD_KEYS = ['ElectromagneticFieldAbsorption', 'DomainId', 'title']
     SRC_IDENTIFIER = 'ElectromagneticFieldAbsorption'
-    
+
     def __init__(self, jcm_dict, i_src=0):
         PP_DensityIntegration.__init__(self,jcm_dict,
                                        i_src=i_src,
@@ -148,12 +148,12 @@ class PP_Absorption(PP_DensityIntegration):
 class PP_ElectricFieldEnhancement(PP_DensityIntegration):
     STD_KEYS = ['ElectricFieldEnergy', 'DomainId', 'title']
     SRC_IDENTIFIER = 'ElectricFieldEnergy'
-    
+
     def __init__(self, jcm_dict, i_src=0):
         PP_DensityIntegration.__init__(self,jcm_dict,
                                        i_src=i_src,
                                        quantity='ElectricFieldEnergy')
-    
+
 class PP_FluxIntegration(JCM_Post_Process):
     """Holds the results of a JCM-FluxIntegration post process for the source
     with index `i_src`, as performed in this project. """
@@ -177,7 +177,7 @@ class PP_FluxIntegration(JCM_Post_Process):
 
 class PP_GridStatistics3D(JCM_Post_Process):
     """Holds the results of a JCM-GridStatistics post process"""
-    STD_KEYS = [        
+    STD_KEYS = [
         "DomainId","Volume",
         "SmallestElementVolume","LargestElementVolume",
         "AverageElementVolume","MedianElementVolume","SmallestEdgeLength",
@@ -194,7 +194,7 @@ class PP_GridStatistics3D(JCM_Post_Process):
         "MedianAreaRatio","SmallestDihedralAngle","LargestDihedralAngle",
         "AverageDihedralAngle","MedianDihedralAngle"]
     SRC_IDENTIFIER = None
-    
+
     def set_values(self):
         self.Volume = self.jcm_dict['Volume']
         self.title = self.jcm_dict['title']
@@ -202,7 +202,7 @@ class PP_GridStatistics3D(JCM_Post_Process):
 
 class PP_GridStatistics2D(JCM_Post_Process):
     """Holds the results of a JCM-GridStatistics post process"""
-    STD_KEYS = [        
+    STD_KEYS = [
         "DomainId","Area",
         "SmallestElementArea","LargestElementArea",
         "AverageElementArea","MedianElementArea","SmallestEdgeLength",
@@ -216,21 +216,21 @@ class PP_GridStatistics2D(JCM_Post_Process):
         "AverageQ3","MedianQ3","SmallestQ5",
         "LargestQ5","AverageQ5","MedianQ5"]
     SRC_IDENTIFIER = None
-    
+
     def set_values(self):
         self.Volume = self.jcm_dict['Area']
         self.title = self.jcm_dict['title']
         self.DomainId = self.jcm_dict['DomainId']
 
-        
-    
+
+
 class PP_VolumeIntegration(JCM_Post_Process):
     """Holds the results of a JCM-DensityIntegration which is used to
     calculate the volumes of the different domain IDs."""
 
     STD_KEYS = ['VolumeIntegral', 'DomainId', 'title']
     SRC_IDENTIFIER = None
-    
+
     def set_values(self):
         # Extract the info from the dict
         self.VolumeIntegral = self.jcm_dict['VolumeIntegral'][0].real
@@ -252,12 +252,12 @@ class PP_ExportField(JCM_Post_Process):
         self.STD_KEYS = ['field','DomainId','title']
         self.SRC_IDENTIFIER = 'field'
         self.Quantity = Quantity
-    
+
     def set_values(self):
         # Extract the info from the dict
         self.field = self.jcm_dict['field'][self.i_src]
         self.grid = self.jcm_dict['grid']
-        self.X = self.jcm_dict['X']        
+        self.X = self.jcm_dict['X']
         self.Y = self.jcm_dict['Y']
         self.Z = self.jcm_dict['Z']
 
@@ -271,7 +271,7 @@ class PP_ExportField(JCM_Post_Process):
                                                        keys['theta'])
         fullfolder = os.path.join(folder,subfolder)
         if not os.path.isdir(fullfolder):
-            os.makedirs(fullfolder)        
+            os.makedirs(fullfolder)
 
         filename = "{}_{}.txt".format(self.Quantity,'real_x')
         fullfile = os.path.join(fullfolder,filename)
@@ -284,7 +284,7 @@ class PP_ExportField(JCM_Post_Process):
         filename = "{}_{}.txt".format(self.Quantity,'real_z')
         fullfile = os.path.join(fullfolder,filename)
         np.savetxt(fullfile,np.squeeze(np.real(self.field[:,:,2])))
-        
+
         filename = "{}_{}.txt".format(self.Quantity,'imag_x')
         fullfile = os.path.join(fullfolder,filename)
         np.savetxt(fullfile,np.squeeze(np.imag(self.field[:,:,0])))
@@ -295,7 +295,7 @@ class PP_ExportField(JCM_Post_Process):
 
         filename = "{}_{}.txt".format(self.Quantity,'imag_z')
         fullfile = os.path.join(fullfolder,filename)
-        np.savetxt(fullfile,np.squeeze(np.imag(self.field[:,:,1])))        
+        np.savetxt(fullfile,np.squeeze(np.imag(self.field[:,:,1])))
 
         filename = "{}_{}.txt".format(self.Quantity,'X')
         fullfile = os.path.join(fullfolder,filename)
@@ -308,7 +308,7 @@ class PP_ExportField(JCM_Post_Process):
         filename = "{}_{}.txt".format(self.Quantity,'Z')
         fullfile = os.path.join(fullfolder,filename)
         np.savetxt(fullfile,np.squeeze(self.Z))
-        
+
 def iterate_sources_for_pp(pp, class_):
     """Returns a list of `class_`-instances from post process data
     of JCMsuite for each source."""
@@ -344,14 +344,19 @@ def getDomainArea(keys):
        elif keys['domain_shape'] == 'Parallelogram':
            return (keys['pitch']*keys['uol'])**2*np.sin(np.radians(60))
        elif keys['domain_shape'] == 'Hexagon':
-           return 0.5*np.sqrt(3)*(keys['pitch']*keys['uol'])**2           
+           return 0.5*np.sqrt(3)*(keys['pitch']*keys['uol'])**2
+       elif keys['domain_shape'] == 'Circle':
+           radius = keys['radius_particle']*keys['uol']
+           cd_radius_sq = keys['domain_area_ratio']*radius**2
+           return np.pi*cd_radius_sq
     return 0.0
 
 def writeParameters(keys,results):
     wvl = keys['vacuum_wavelength']
     theta_in = np.deg2rad(keys['theta'])
     uol = keys['uol'] # unit of length for geometry data
-    p = uol*keys['pitch']
+    if 'pitch' in keys:
+        p = uol*keys['pitch']
 
 def writeRefractiveIndices(keys,results,nk_data):
     # Save the refactive index data, real and imag parts marked
@@ -381,7 +386,7 @@ def grabPP(pps,PP_Template,pp_dict,names):
 
     assert names[0] in pp_dict
 
-        
+
 def RTfromFT(pps,keys,results,nk_data):
     # Assume first PP found is for reflection
     RT = {}
@@ -410,7 +415,7 @@ def RTfromFT(pps,keys,results,nk_data):
         # Save the results
         results['R_{0}'.format(i+1)] = refl
         results['T_{0}'.format(i+1)] = trans
-    
+
 def RTfromFlux(pps,keys,results,nk_data):
     RT = {}
     grabPP(pps,PP_FluxIntegration,RT,['Flux'])
@@ -430,7 +435,7 @@ def RTfromFlux(pps,keys,results,nk_data):
         index_up = np.where( pp.DomainIdSecond == keys['Domains'][domain_name_in])
         index_down = np.where( pp.DomainIdSecond == keys['Domains'][domain_name_out])
         refl = np.real(pp.Flux[ index_up][0])/p_in
-        trans = np.real(pp.Flux[ index_down][0])/p_in                                                  
+        trans = np.real(pp.Flux[ index_down][0])/p_in
         results['R_Flux_{0}'.format(i+1)] = refl
         results['T_Flux_{0}'.format(i+1)] = trans
 
@@ -441,9 +446,9 @@ def absorption(pps,keys,results,nk_data):
     sources =list(range(num_srcs))
     area_in = getDomainArea(keys)
     if keys['incidence'] == 'FromAbove':
-        domain_name_in = 'superspace'    
+        domain_name_in = 'superspace'
     elif keys['incidence'] == 'FromBelow':
-        domain_name_in = 'subspace'    
+        domain_name_in = 'subspace'
     p_in = plane_wave_flux_in_area(area_in, np.real(nk_data[domain_name_in]))
     for i in sources:
         pp = Abs['Quantity'][i]
@@ -461,7 +466,7 @@ def domainVolumes(pps,keys,results,nk_data):
         if keys['Dimensionality'] == "2D":
             grabPP(pps,PP_GridStatistics2D,Volumes,['Volume'])
         else:
-            grabPP(pps,PP_GridStatistics3D,Volumes,['Volume'])        
+            grabPP(pps,PP_GridStatistics3D,Volumes,['Volume'])
     else:
         grabPP(pps,PP_VolumeIntegration,Volumes,['Volume'])
 
@@ -476,20 +481,20 @@ def domainVolumes(pps,keys,results,nk_data):
         index = np.where( pp.DomainId == keys['Domains'][domain])
         if len(index[0]) == 0:
             continue
-            
+
         if keys['Dimensionality'] == '2D':
             volume = volumes[index][0]
         else:
             volume = volumes[index][0]
         keys['Volume_{0}'.format(domain)] = volume
 
-            
+
 def eFieldEnhancement(pps,keys,results,nk_data):
     eFieldEnergy = {}
     grabPP(pps,PP_ElectricFieldEnhancement,eFieldEnergy,['Quantity'])
     num_srcs = len(eFieldEnergy['Quantity'])
     sources =list(range(num_srcs))
-    p_in = 1.0    
+    p_in = 1.0
     for i in sources:
         pp = eFieldEnergy['Quantity'][i]
         for domain in keys['Domains']:
@@ -508,7 +513,7 @@ def energyConservation(pps,keys,results,nk_data):
 
     for domain in keys['Domains']:
         conservation_keys.append('Abs_{}'.format(domain))
-        conservation_keysFlux.append('Abs_{}'.format(domain))        
+        conservation_keysFlux.append('Abs_{}'.format(domain))
     keysets = [conservation_keys,conservation_keysFlux]
     conservation_name = ["Conservation","ConservationFlux"]
     while True:
@@ -528,7 +533,7 @@ def energyConservation(pps,keys,results,nk_data):
                     #print("{}_{} is missing".format(key,i_src+1))
                     nMissing[keysetnum] += 1
                     pass
-            if nMissing[keysetnum] == 0:                
+            if nMissing[keysetnum] == 0:
                 results["{}_{}".format(conservation_name[keysetnum],
                                        i_src+1)] = conservation[keysetnum]
 
@@ -536,10 +541,68 @@ def energyConservation(pps,keys,results,nk_data):
             break
         i_src += 1
 
-        
-        
+def getParticleArea(keys):
+    return np.pi * (keys['radius_particle']*keys['uol'])**2
 
-            
+def getGeometryFactor(keys):
+    domain_area_in = getDomainArea(keys)
+    particle_area = getParticleArea(keys)
+    return particle_area/domain_area_in
+
+def particleCrossSections(pps,keys,results,nk_data):
+    particleAbsorptionCrossSection(pps,keys,results,nk_data)
+    particleScatteringCrossSection(pps,keys,results,nk_data)
+
+def particleAbsorptionCrossSection(pps,keys,results,nk_data):
+    Abs = {}
+    grabPP(pps,PP_Absorption,Abs,['Quantity'])
+    num_srcs = len(Abs['Quantity'])
+    sources =list(range(num_srcs))
+    area_in = getDomainArea(keys)
+    geometry_factor = getGeometryFactor(keys)
+    print(geometry_factor)
+    if keys['incidence'] == 'FromAbove':
+        domain_name_in = 'superspace'
+    elif keys['incidence'] == 'FromBelow':
+        domain_name_in = 'subspace'
+    p_in = plane_wave_flux_in_area(area_in, np.real(nk_data[domain_name_in]))
+    for i in sources:
+        pp = Abs['Quantity'][i]
+        for domain in ['particle']:
+            index = np.where( pp.DomainId == keys['Domains'][domain])
+            if len(index[0]) == 0:
+                results['Qabs_{0}_{1}'.format(domain,i+1)] = 0.0
+                continue
+            absorption = np.real(pp.Quantity[index][0])/p_in
+            results['Qabs_{0}_{1}'.format(domain,i+1)] = absorption/geometry_factor
+
+def particleScatteringCrossSection(pps,keys,results,nk_data):
+    RT = {}
+    grabPP(pps,PP_FluxIntegration,RT,['Flux'])
+    num_srcs = len(RT['Flux'])
+    sources =list(range(num_srcs))
+
+    area_in = getDomainArea(keys)
+    geometry_factor = getGeometryFactor(keys)
+    if keys['incidence'] == 'FromAbove':
+        domain_name_in = 'superspace'
+        domain_name_out = 'subspace'
+    elif keys['incidence'] == 'FromBelow':
+        domain_name_in = 'subspace'
+        domain_name_out = 'superspace'
+    p_in = plane_wave_flux_in_area(area_in, np.real(nk_data[domain_name_in]))
+    for i in sources:
+        pp = RT['Flux'][i]
+        index_up = np.where( pp.DomainIdSecond == keys['Domains'][domain_name_in])
+        index_down = np.where( pp.DomainIdSecond == keys['Domains'][domain_name_out])
+        refl = np.real(pp.Flux[ index_up][0])/p_in
+        trans = np.real(pp.Flux[ index_down][0])/p_in
+        scattered = refl+trans
+        results['Qsca_{0}_{1}'.format("particle",i+1)] = scattered/geometry_factor
+        #results['R_Flux_{0}'.format(i+1)] = refl
+        #results['T_Flux_{0}'.format(i+1)] = trans
+
+
 def processing_function(pps, keys):
     if keys['projectType'] == "scattering":
         return processing_function_scattering(pps,keys)
@@ -548,7 +611,7 @@ def processing_function(pps, keys):
     else:
         raise KeyError("keys[projectType] {} not a valid key".format(keys['[projectType']))
 
-def processing_function_scattering(pps, keys):    
+def processing_function_scattering(pps, keys):
     """returns the a dictionary with the results from jcm
        post processes relevant to scattering problems"""
     results = {}
@@ -565,10 +628,10 @@ def processing_function_scattering(pps, keys):
     for dkey in default_keys:
         if not dkey in keys:
             keys[dkey] = default_keys[dkey]
-            
+
     # Refractive indices
     wvl = keys['vacuum_wavelength']
-    nk_data = {}    
+    nk_data = {}
     for domain in keys['Domains'].keys():
         nk_data[domain] = keys['mat_'+domain].get_nk_data(wvl)
 
@@ -576,9 +639,9 @@ def processing_function_scattering(pps, keys):
     if "writeParameters" in keys['PostProcesses']:
         #print("writeParameters")
         writeParameters(keys,results)
-    
+
     if "writeRefractiveIndices" in keys['PostProcesses']:
-        #print("writeRefractiveIndices")        
+        #print("writeRefractiveIndices")
         writeRefractiveIndices(keys,results,nk_data)
 
     if "RTfromFT" in keys['PostProcesses']:
@@ -607,15 +670,19 @@ def processing_function_scattering(pps, keys):
                 results['Quasi_Thickness_'+key[7:]] = np.round(1e9*keys[key]
                                                                /area_in,
                                                                decimals=1)
-                
-    
+
+
     if "ElectricFieldEnhancement" in keys['PostProcesses']:
         domainVolumes(pps,keys,results,nk_data)
         eFieldEnhancement(pps,keys,results,nk_data)
 
     if "EnergyConservation" in keys['PostProcesses']:
         energyConservation(pps,keys,results,nk_data)
-        
+
+    if "ParticleCrossSections" in keys['PostProcesses']:
+        particleCrossSections(pps,keys,results,nk_data)
+
+
     return results
 
 if __name__ == '__main__':
