@@ -96,7 +96,7 @@ class PP_FourierTransform(JCM_Post_Process):
         return self.title+'(i_src={})'.format(self.i_src)
 
     def _cos_factor(self, theta_rad):
-        thetas = np.arccos( np.abs(self.K[:,-1]) / norm(self.K[0]) )
+        thetas = np.arccos(np.clip( np.abs(self.K[:,-1]) / norm(self.K[0]) ,-1.0,1.0))
         return np.cos(thetas)/np.cos(theta_rad)
 
     def get_reflection(self, theta_rad):
@@ -385,8 +385,16 @@ def grabPP(pps,PP_Template,pp_dict,names):
 def RTfromFT(pps,keys,results,nk_data):
     # Assume first PP found is for reflection
     RT = {}
-    grabPP(pps,PP_FourierTransform,RT,['R','T'])
-    # We should have found multiple sources
+    if keys['incidence'] == 'FromAbove':
+        n_in = np.real(nk_data['superspace'])
+        n_out = np.real(nk_data['subspace'])
+        pp_order = ['R','T']
+    elif keys['incidence'] == 'FromBelow':
+        n_in = np.real(nk_data['subspace'])
+        n_out = np.real(nk_data['superspace'])
+        pp_order = ['T','R']
+    grabPP(pps,PP_FourierTransform,RT,pp_order)
+    # We should have found multiple sources1
     num_srcs = len(RT['R'])
     sources =list(range(num_srcs))
     theta_in = keys['theta']
@@ -395,8 +403,8 @@ def RTfromFT(pps,keys,results,nk_data):
         # of the PP_FourierTransform class
         refl = RT['R'][i].get_reflection(theta_in)
         trans = RT['T'][i].get_transmission(theta_in,
-                                            n_subspace=np.real(nk_data['subspace']),
-                                            n_superspace=np.real(nk_data['superspace']))
+                                            n_subspace=n_out,
+                                            n_superspace=n_in)
         #index = np.where(fdis[i].DomainIdSecond==keys['Domains']['subspace'])
         #trans = np.real(fdis[i].Flux[index])[0]/p_in
         # Save the results
@@ -410,11 +418,17 @@ def RTfromFlux(pps,keys,results,nk_data):
     sources =list(range(num_srcs))
 
     area_in = getDomainArea(keys)
-    p_in = plane_wave_flux_in_area(area_in, np.real(nk_data['superspace']))
+    if keys['incidence'] == 'FromAbove':
+        domain_name_in = 'superspace'
+        domain_name_out = 'subspace'
+    elif keys['incidence'] == 'FromBelow':
+        domain_name_in = 'subspace'
+        domain_name_out = 'superspace'
+    p_in = plane_wave_flux_in_area(area_in, np.real(nk_data[domain_name_in]))
     for i in sources:
         pp = RT['Flux'][i]
-        index_up = np.where( pp.DomainIdSecond == keys['Domains']['superspace'])
-        index_down = np.where( pp.DomainIdSecond == keys['Domains']['subspace'])        
+        index_up = np.where( pp.DomainIdSecond == keys['Domains'][domain_name_in])
+        index_down = np.where( pp.DomainIdSecond == keys['Domains'][domain_name_out])
         refl = np.real(pp.Flux[ index_up][0])/p_in
         trans = np.real(pp.Flux[ index_down][0])/p_in                                                  
         results['R_Flux_{0}'.format(i+1)] = refl
@@ -426,7 +440,11 @@ def absorption(pps,keys,results,nk_data):
     num_srcs = len(Abs['Quantity'])
     sources =list(range(num_srcs))
     area_in = getDomainArea(keys)
-    p_in = plane_wave_flux_in_area(area_in, np.real(nk_data['superspace']))
+    if keys['incidence'] == 'FromAbove':
+        domain_name_in = 'superspace'    
+    elif keys['incidence'] == 'FromBelow':
+        domain_name_in = 'subspace'    
+    p_in = plane_wave_flux_in_area(area_in, np.real(nk_data[domain_name_in]))
     for i in sources:
         pp = Abs['Quantity'][i]
         for domain in keys['Domains']:
