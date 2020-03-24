@@ -563,7 +563,6 @@ def particleAbsorptionCrossSection(pps,keys,results,nk_data):
     sources =list(range(num_srcs))
     area_in = getDomainArea(keys)
     geometry_factor = getGeometryFactor(keys)
-    print(geometry_factor)
     if keys['incidence'] == 'FromAbove':
         domain_name_in = 'superspace'
     elif keys['incidence'] == 'FromBelow':
