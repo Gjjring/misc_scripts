@@ -96,8 +96,8 @@ class PP_FourierTransform(JCM_Post_Process):
         return self.title+'(i_src={})'.format(self.i_src)
 
     def _cos_factor(self, theta_rad):
-        thetas = np.arccos(np.clip( np.abs(self.K[:,-1]) / norm(self.K[0]) ,-1.0,1.0))
-        return np.cos(thetas)/np.cos(theta_rad)
+        cosvalues = np.clip( np.abs(self.K[:,-1]) / norm(self.K[0]) ,-1.0,1.0)
+        return cosvalues/np.cos(theta_rad)
 
     def get_reflection(self, theta_rad):
         """Returns the reflection. `theta_rad` is the incident angle in
@@ -327,12 +327,12 @@ def plane_wave_energy_in_volume(volume, refractive_index):
     #poynting_constant = 0.5*refractive_index/(Z0)
     #return poynting_constant*volume
 
-def plane_wave_flux_in_area(area, refractive_index):
+def plane_wave_flux_in_area(area, refractive_index,keys):
     """Returns the energy normalization factor from the case of a plane wave.
     """
     Z0 = np.sqrt( constants.mu_0 / constants.epsilon_0 )
     poynting_constant = 0.5*refractive_index/(Z0)
-    angle_factor = 1.0
+    angle_factor = np.cos(np.radians(keys['theta']))
     return poynting_constant*area*angle_factor
 
 def getDomainArea(keys):
@@ -349,14 +349,17 @@ def getDomainArea(keys):
            radius = keys['radius_particle']*keys['uol']
            cd_radius_sq = keys['domain_area_ratio']*radius**2
            return np.pi*cd_radius_sq
+       else:
+           raise ValueError("domain_shape {} not valid".format(keys['domain_shape']))
     return 0.0
 
 def writeParameters(keys,results):
-    wvl = keys['vacuum_wavelength']
-    theta_in = np.deg2rad(keys['theta'])
-    uol = keys['uol'] # unit of length for geometry data
-    if 'pitch' in keys:
-        p = uol*keys['pitch']
+    pass
+    #wvl = keys['vacuum_wavelength']
+    #theta_in = np.deg2rad(keys['theta'])
+    #uol = keys['uol'] # unit of length for geometry data
+    #if 'pitch' in keys:
+    #p = uol*keys['pitch']
 
 def writeRefractiveIndices(keys,results,nk_data):
     # Save the refactive index data, real and imag parts marked
@@ -402,12 +405,12 @@ def RTfromFT(pps,keys,results,nk_data):
     # We should have found multiple sources1
     num_srcs = len(RT['R'])
     sources =list(range(num_srcs))
-    theta_in = keys['theta']
+    theta_rad_in = np.radians(keys['theta'])
     for i in sources:
         # Reflection and transmission is calculated by the get_refl_trans
         # of the PP_FourierTransform class
-        refl = RT['R'][i].get_reflection(theta_in)
-        trans = RT['T'][i].get_transmission(theta_in,
+        refl = RT['R'][i].get_reflection(theta_rad_in)
+        trans = RT['T'][i].get_transmission(theta_rad_in,
                                             n_subspace=n_out,
                                             n_superspace=n_in)
         #index = np.where(fdis[i].DomainIdSecond==keys['Domains']['subspace'])
@@ -429,7 +432,7 @@ def RTfromFlux(pps,keys,results,nk_data):
     elif keys['incidence'] == 'FromBelow':
         domain_name_in = 'subspace'
         domain_name_out = 'superspace'
-    p_in = plane_wave_flux_in_area(area_in, np.real(nk_data[domain_name_in]))
+    p_in = plane_wave_flux_in_area(area_in, np.real(nk_data[domain_name_in]),keys)
     for i in sources:
         pp = RT['Flux'][i]
         index_up = np.where( pp.DomainIdSecond == keys['Domains'][domain_name_in])
@@ -449,7 +452,7 @@ def absorption(pps,keys,results,nk_data):
         domain_name_in = 'superspace'
     elif keys['incidence'] == 'FromBelow':
         domain_name_in = 'subspace'
-    p_in = plane_wave_flux_in_area(area_in, np.real(nk_data[domain_name_in]))
+    p_in = plane_wave_flux_in_area(area_in, np.real(nk_data[domain_name_in]),keys)
     for i in sources:
         pp = Abs['Quantity'][i]
         for domain in keys['Domains']:
@@ -565,7 +568,7 @@ def particleAbsorptionCrossSection(pps,keys,results,nk_data):
         domain_name_in = 'superspace'
     elif keys['incidence'] == 'FromBelow':
         domain_name_in = 'subspace'
-    p_in = plane_wave_flux_in_area(area_in, np.real(nk_data[domain_name_in]))
+    p_in = plane_wave_flux_in_area(area_in, np.real(nk_data[domain_name_in]),keys)
     for i in sources:
         pp = Abs['Quantity'][i]
         for domain in ['particle']:
@@ -590,7 +593,7 @@ def particleScatteringCrossSection(pps,keys,results,nk_data):
     elif keys['incidence'] == 'FromBelow':
         domain_name_in = 'subspace'
         domain_name_out = 'superspace'
-    p_in = plane_wave_flux_in_area(area_in, np.real(nk_data[domain_name_in]))
+    p_in = plane_wave_flux_in_area(area_in, np.real(nk_data[domain_name_in]),keys)
     for i in sources:
         pp = RT['Flux'][i]
         index_up = np.where( pp.DomainIdSecond == keys['Domains'][domain_name_in])
