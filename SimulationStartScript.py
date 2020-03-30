@@ -130,8 +130,10 @@ def StartScript(args):
         simuset = jpy.SimulationSet(project,keys,storage_folder =os.path.join(keys['constants']['storage_folder'],args.DataSetName),combination_mode=args.ParameterCombination,store_logs=keepLogs)
         #combination_mode='list'
         simuset.make_simulation_schedule()
-        simuset.use_only_resources(args.resource)
-        simuset.resource_manager.resources.set_m_n_for_all(N,M)
+        resources = args.resource.split(";")
+        simuset.use_only_resources(resources)
+        if N >0:
+            simuset.resource_manager.resources.set_m_n_for_all(M,N)
         import time
         start = time.time()
         if args.SingleSimulation == -1:
