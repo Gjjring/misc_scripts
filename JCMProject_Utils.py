@@ -14,10 +14,41 @@ from numpy.linalg import norm
 from scipy import constants
 import os
 # from warnings import warn
-
+from refractive_index_database import Spectrum, MaterialData
 Z0 = np.sqrt( constants.mu_0 / constants.epsilon_0 )
 
 # =============================================================================
+
+def make_anti_reflex_layers(keys):
+  mat1 = keys['layer_order'][keys['AntiReflex_at']]
+  mat2 = keys['layer_order'][keys['AntiReflex_at']+1]
+  nLayers = keys['AntiReflex_n_layers']
+  total_thickness = keys['height_AntiReflex']
+  spectrum = Spectrum(keys['vacuum_wavelength'], unit='m')
+  nk1 = np.real(keys['mat_'+mat1].get_nk_data(spectrum))
+  nk2 = np.real(keys['mat_'+mat2].get_nk_data(spectrum))
+  max_id = 0
+  for key in keys['Domains']:
+    if keys['Domains'][key] > max_id:
+      max_id = keys['Domains'][key]
+  max_id += 1
+
+  for ilayer,layer in enumerate(keys['layer_order']):
+    if layer == mat1:
+        start_layer = ilayer
+  for step in range(1,nLayers+1):
+    n = nk1 + (nk2-nk1)*(step)/(nLayers+1)
+    new_data = np.vstack([spectrum.values, n]).T
+    mat_name = 'mat_AntiReflex_{}'.format(step)
+    keys[mat_name] = MaterialData(tabulated_n=new_data,unit='m')
+    t = total_thickness/nLayers
+    height_name = 'height_AntiReflex_{}'.format(step)
+    keys[height_name] = t
+    layer_name = "AntiReflex_{}".format(step)
+    keys['Domains'][layer_name] = max_id+step
+    keys['layer_order'].insert(start_layer+step,layer_name)
+  return keys
+
 
 class Cone(object):
     """Cone with a specific height, diameter at center and side wall angle
