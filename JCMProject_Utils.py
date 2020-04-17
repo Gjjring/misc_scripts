@@ -13,6 +13,8 @@ import numpy as np
 from numpy.linalg import norm
 from scipy import constants
 import os
+import pandas as pd
+import pdb
 # from warnings import warn
 from refractive_index_database import Spectrum, MaterialData
 Z0 = np.sqrt( constants.mu_0 / constants.epsilon_0 )
@@ -20,34 +22,34 @@ Z0 = np.sqrt( constants.mu_0 / constants.epsilon_0 )
 # =============================================================================
 
 def make_anti_reflex_layers(keys):
-  mat1 = keys['layer_order'][keys['AntiReflex_at']]
-  mat2 = keys['layer_order'][keys['AntiReflex_at']+1]
-  nLayers = keys['AntiReflex_n_layers']
-  total_thickness = keys['height_AntiReflex']
-  spectrum = Spectrum(keys['vacuum_wavelength'], unit='m')
-  nk1 = np.real(keys['mat_'+mat1].get_nk_data(spectrum))
-  nk2 = np.real(keys['mat_'+mat2].get_nk_data(spectrum))
-  max_id = 0
-  for key in keys['Domains']:
-    if keys['Domains'][key] > max_id:
-      max_id = keys['Domains'][key]
-  max_id += 1
+    mat1 = keys['layer_order'][keys['AntiReflex_at']]
+    mat2 = keys['layer_order'][keys['AntiReflex_at']+1]
+    nLayers = keys['AntiReflex_n_layers']
+    total_thickness = keys['height_AntiReflex']
+    spectrum = Spectrum(keys['vacuum_wavelength'], unit='m')
+    nk1 = np.real(keys['mat_'+mat1].get_nk_data(spectrum))
+    nk2 = np.real(keys['mat_'+mat2].get_nk_data(spectrum))
+    max_id = 0
+    for key in keys['Domains']:
+        if keys['Domains'][key] > max_id:
+            max_id = keys['Domains'][key]
+    max_id += 1
 
-  for ilayer,layer in enumerate(keys['layer_order']):
-    if layer == mat1:
-        start_layer = ilayer
-  for step in range(1,nLayers+1):
-    n = nk1 + (nk2-nk1)*(step)/(nLayers+1)
-    new_data = np.vstack([spectrum.values, n]).T
-    mat_name = 'mat_AntiReflex_{}'.format(step)
-    keys[mat_name] = MaterialData(tabulated_n=new_data,unit='m')
-    t = total_thickness/nLayers
-    height_name = 'height_AntiReflex_{}'.format(step)
-    keys[height_name] = t
-    layer_name = "AntiReflex_{}".format(step)
-    keys['Domains'][layer_name] = max_id+step
-    keys['layer_order'].insert(start_layer+step,layer_name)
-  return keys
+    for ilayer,layer in enumerate(keys['layer_order']):
+        if layer == mat1:
+            start_layer = ilayer
+    for step in range(1,nLayers+1):
+        n = nk1 + (nk2-nk1)*(step)/(nLayers+1)
+        new_data = np.vstack([spectrum.values, n]).T
+        mat_name = 'mat_AntiReflex_{}'.format(step)
+        keys[mat_name] = MaterialData(tabulated_n=new_data,unit='m')
+        t = total_thickness/nLayers
+        height_name = 'height_AntiReflex_{}'.format(step)
+        keys[height_name] = t
+        layer_name = "AntiReflex_{}".format(step)
+        keys['Domains'][layer_name] = max_id+step
+        keys['layer_order'].insert(start_layer+step,layer_name)
+    return keys
 
 
 class Cone(object):
@@ -150,7 +152,7 @@ class PP_DensityIntegration(JCM_Post_Process):
     """Holds the results of a JCM-DensityIntegration post process for the source
     with index `i_src`, as performed in this project. """
 
-    def __init__(self, jcm_dict, i_src=0,quantity="ElectricFieldStrength"):
+    def __init__(self, jcm_dict, i_src=0, quantity="ElectricFieldStrength"):
         self.quantity = quantity
         STD_KEYS = [quantity, 'DomainId', 'title']
         SRC_IDENTIFIER = quantity
@@ -277,23 +279,111 @@ class PP_VolumeIntegration(JCM_Post_Process):
 
 class PP_ExportField(JCM_Post_Process):
 
-    def __init__(self, jcm_dict,Quantity, i_src=0):
-        jcm_dict['title'] = Quantity
+    STD_KEYS = ['X', 'Y', 'Z','field','grid']
+    SRC_IDENTIFIER = 'field'
+
+    def __init__(self, jcm_dict, quantity, i_src=0):
+        jcm_dict['title'] = quantity
         JCM_Post_Process.__init__(self, jcm_dict, i_src=i_src)
-        self.STD_KEYS = ['field','DomainId','title']
-        self.SRC_IDENTIFIER = 'field'
-        self.Quantity = Quantity
+
+        self.Quantity = quantity
 
     def set_values(self):
         # Extract the info from the dict
         self.field = self.jcm_dict['field'][self.i_src]
-        self.grid = self.jcm_dict['grid']
+        self.domains = self.jcm_dict['grid']['domainIds']
         self.X = self.jcm_dict['X']
         self.Y = self.jcm_dict['Y']
         self.Z = self.jcm_dict['Z']
 
     def __repr__(self):
-        return self.title+'(domain_ids={})'.format(self.DomainId)
+        return self.title
+
+    def save_to_dataframe(self, keys, suffix, source=0):
+        base_folder = keys['field_storage_folder']
+        subfolders = [base_folder]
+
+        if ("polarization" in keys and
+            keys['polarization'] == 'TM'):
+            source=1
+
+        source_names = {0:'TE', 1:'TM'}
+        source_name = source_names[source]
+
+        for identifier in keys['NearFieldIdentifiers']:
+            subfolders.append( "{}_{}".format(identifier,
+                                              keys[identifier]))
+        subfolders.append("{}_{}".format("polarization",source_name))
+        folder = os.path.join(*subfolders)
+        if not os.path.isdir(folder):
+            os.makedirs(folder)
+        filename = "{}.csv".format(suffix)
+        full_file = os.path.join(folder,filename)
+
+        df_dict = {}
+        df_dict['X'] = self.X.flatten()
+        df_dict['Y'] = self.Y.flatten()
+        df_dict['Z'] = self.Z.flatten()
+        #df_dict['domainId'] = self.domains
+        df_dict['field_x_real'] = np.real(self.field[:,:,0].flatten())
+        df_dict['field_x_imag'] = np.imag(self.field[:,:,0].flatten())
+        df_dict['field_y_real'] = np.real(self.field[:,:,1].flatten())
+        df_dict['field_y_imag'] = np.imag(self.field[:,:,1].flatten())
+        df_dict['field_z_real'] = np.real(self.field[:,:,2].flatten())
+        df_dict['field_z_imag'] = np.imag(self.field[:,:,2].flatten())
+
+        #for item in df_dict.items():
+        #    print("{} has shape: {}".format(item[0],item[1].shape))
+
+        df = pd.DataFrame.from_dict(df_dict)
+        df.to_csv(full_file, index=False)
+
+    def save_to_dataframe2(self, keys, suffix, source=0):
+        base_folder = keys['field_storage_folder']
+        dataset_name = keys['dataset_name']
+        filename = "{}_{}.csv".format(dataset_name,suffix)
+        full_file = os.path.join(base_folder,filename)
+        data_length = self.X.flatten().size
+
+        df_dict = {}
+        df_dict['X'] = self.X.flatten()
+        df_dict['Y'] = self.Y.flatten()
+        df_dict['Z'] = self.Z.flatten()
+        #df_dict['domainId'] = self.domains
+        df_dict['field_x_real'] = np.real(self.field[:,:,0].flatten())
+        df_dict['field_x_imag'] = np.imag(self.field[:,:,0].flatten())
+        df_dict['field_y_real'] = np.real(self.field[:,:,1].flatten())
+        df_dict['field_y_imag'] = np.imag(self.field[:,:,1].flatten())
+        df_dict['field_z_real'] = np.real(self.field[:,:,2].flatten())
+        df_dict['field_z_imag'] = np.imag(self.field[:,:,2].flatten())
+
+
+
+        df = pd.DataFrame.from_dict(df_dict)
+
+        if ("polarization" in keys and
+            keys['polarization'] == 'TM'):
+            source=1
+
+        source_names = {0:'TE', 1:'TM'}
+        source_name = source_names[source]
+        df['polarization'] = source_name
+        df['plane'] = suffix
+        for identifier in keys['NearFieldIdentifiers']:
+            df[identifier] = keys[identifier]
+
+        print("grid shape: {}".format(self.X.shape))
+        print("unique x: {}".format(np.unique(self.X).shape))
+        print("unique z: {}".format(np.unique(self.Z).shape))
+        for item in df_dict.items():
+            print("{} has shape: {}".format(item[0],item[1].shape))
+
+        if os.path.isfile(full_file):
+            df_current = pd.read_csv(full_file)
+            df = pd.concat([df_current,df])
+
+        df.to_csv(full_file, index=False)
+
 
     def writeToFile(self,keys):
         folder = keys['field_storage_folder']
@@ -339,15 +429,6 @@ class PP_ExportField(JCM_Post_Process):
         filename = "{}_{}.txt".format(self.Quantity,'Z')
         fullfile = os.path.join(fullfolder,filename)
         np.savetxt(fullfile,np.squeeze(self.Z))
-
-def iterate_sources_for_pp(pp, class_):
-    """Returns a list of `class_`-instances from post process data
-    of JCMsuite for each source."""
-    if class_.SRC_IDENTIFIER is None:
-        return class_(pp)
-    else:
-        n_sources = pp[class_.SRC_IDENTIFIER].keys()
-        return [class_(pp, i) for i in n_sources]
 
 def plane_wave_energy_in_volume(volume, refractive_index):
     """Returns the energy normalization factor from the case of a plane wave.
@@ -406,19 +487,35 @@ def grabPP(pps,PP_Template,pp_dict,names):
     # to find post processes that can be formatted into the
     # given PP_Template and add the result to pp_dict with
     # key given by the ith entry in names
+    print("grabPP: {}, {}".format(PP_Template, names))
+    name_index = 0
     for i in range(len(pps)):
+        print("i pp:{}".format(i))
         if type(pps[i]) == list:
             pps[i] = pps[i][0]
         try :
-            pp = iterate_sources_for_pp(pps[i], PP_Template)
-            if names[0] not in pp_dict.keys():
-                pp_dict[names[0]] = pp
-            else:
-                pp_dict[names[1]] = pp
+            pp_list = iterate_sources_for_pp(pps[i], PP_Template)
+            print("i:{}, names[i]:{}".format(i,names[name_index]))
+            pp_dict[names[name_index]] = pp_list
+            name_index += 1
+
         except (KeyError, ValueError) as e:
             pass
 
     assert names[0] in pp_dict
+
+def iterate_sources_for_pp(pp, class_):
+    """Returns a list of `class_`-instances from post process data
+    of JCMsuite for each source."""
+    if class_.SRC_IDENTIFIER is None:
+        return class_(pp)
+    else:
+        if isinstance(pp[class_.SRC_IDENTIFIER], dict):
+            n_sources = pp[class_.SRC_IDENTIFIER].keys()
+            return [class_(pp, i) for i in n_sources]
+        elif isinstance(pp[class_.SRC_IDENTIFIER], list):
+            n_sources = len(pp[class_.SRC_IDENTIFIER])
+            return [class_(pp, i) for i in range(n_sources)]
 
 
 def RTfromFT(pps,keys,results,nk_data):
@@ -636,6 +733,18 @@ def particleScatteringCrossSection(pps,keys,results,nk_data):
         #results['T_Flux_{0}'.format(i+1)] = trans
 
 
+def nearField(pps, keys, results, nk_data):
+    Field = {}
+    fields = ['FieldXZ', 'FieldYZ', 'FieldXY']
+    grabPP(pps,PP_ExportField,Field,fields)
+    num_srcs = len(Field['FieldXZ'])
+    sources =list(range(num_srcs))
+    for field in fields:
+        for i in sources:
+            pp = Field[field][i]
+            pp.save_to_dataframe2(keys,field[5:],source=i)
+
+
 def processing_function(pps, keys):
     if keys['projectType'] == "scattering":
         return processing_function_scattering(pps,keys)
@@ -714,6 +823,11 @@ def processing_function_scattering(pps, keys):
 
     if "ParticleCrossSections" in keys['PostProcesses']:
         particleCrossSections(pps,keys,results,nk_data)
+
+    if "NearField" in keys['PostProcesses']:
+        #pdb.set_trace()
+        nearField(pps, keys, results, nk_data)
+
 
 
     return results
