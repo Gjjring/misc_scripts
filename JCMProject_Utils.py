@@ -372,11 +372,6 @@ class PP_ExportField(JCM_Post_Process):
         for identifier in keys['NearFieldIdentifiers']:
             df[identifier] = keys[identifier]
 
-        print("grid shape: {}".format(self.X.shape))
-        print("unique x: {}".format(np.unique(self.X).shape))
-        print("unique z: {}".format(np.unique(self.Z).shape))
-        for item in df_dict.items():
-            print("{} has shape: {}".format(item[0],item[1].shape))
 
         if os.path.isfile(full_file):
             df_current = pd.read_csv(full_file)
@@ -487,15 +482,12 @@ def grabPP(pps,PP_Template,pp_dict,names):
     # to find post processes that can be formatted into the
     # given PP_Template and add the result to pp_dict with
     # key given by the ith entry in names
-    print("grabPP: {}, {}".format(PP_Template, names))
     name_index = 0
     for i in range(len(pps)):
-        print("i pp:{}".format(i))
         if type(pps[i]) == list:
             pps[i] = pps[i][0]
         try :
             pp_list = iterate_sources_for_pp(pps[i], PP_Template)
-            print("i:{}, names[i]:{}".format(i,names[name_index]))
             pp_dict[names[name_index]] = pp_list
             name_index += 1
 
