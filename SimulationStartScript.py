@@ -66,7 +66,7 @@ def StartScript(args):
     keys = GenKeys.getKeys(args.DataSetName)
     keys['constants']['dataset_name'] = os.path.splitext(args.DataSetName)[0]
     #keys['constants']['spectra_storage_folder'] += args.DataSetName
-    keys['constants']['field_storage_folder'] += args.DataSetName
+    #keys['constants']['field_storage_folder'] += args.DataSetName
     if 'jones_matrix_storage_folder' in keys['constants']:
         keys['constants']['jones_matrix_storage_folder'] += args.DataSetName
         if not os.path.isdir(keys['constants']['jones_matrix_storage_folder']):
