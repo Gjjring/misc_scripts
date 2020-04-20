@@ -282,7 +282,7 @@ class PP_ExportField(JCM_Post_Process):
     STD_KEYS = ['X', 'Y', 'Z','field','grid']
     SRC_IDENTIFIER = 'field'
 
-    def __init__(self, jcm_dict, quantity, i_src=0):
+    def __init__(self, jcm_dict, i_src=0, quantity='ElectricFieldStength' ):
         jcm_dict['title'] = quantity
         JCM_Post_Process.__init__(self, jcm_dict, i_src=i_src)
 
@@ -356,8 +356,7 @@ class PP_ExportField(JCM_Post_Process):
         df_dict['field_y_imag'] = np.imag(self.field[:,:,1].flatten())
         df_dict['field_z_real'] = np.real(self.field[:,:,2].flatten())
         df_dict['field_z_imag'] = np.imag(self.field[:,:,2].flatten())
-
-
+        df_dict['field_norm'] = np.linalg.norm(np.abs(self.field),axis=2).flatten()
 
         df = pd.DataFrame.from_dict(df_dict)
 
