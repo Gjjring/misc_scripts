@@ -331,7 +331,7 @@ class PP_ExportField(JCM_Post_Process):
         df_dict['field_y_imag'] = np.imag(self.field[:,:,1].flatten())
         df_dict['field_z_real'] = np.real(self.field[:,:,2].flatten())
         df_dict['field_z_imag'] = np.imag(self.field[:,:,2].flatten())
-
+        #df_dict['domain_id'] = self.domains.flatten()
         #for item in df_dict.items():
         #    print("{} has shape: {}".format(item[0],item[1].shape))
 
@@ -444,7 +444,7 @@ def plane_wave_flux_in_area(area, refractive_index,keys):
 def getDomainArea(keys):
     if keys['Dimensionality'] == "2D":
        return keys['pitch']*keys['uol']
-    elif keys['Dimensionality'] == "3D":
+    elif keys['Dimensionality'] == "3D" or keys['Dimensionality'] == "2.5D":
        if keys['domain_shape'] == 'Square':
            return (keys['pitch']*keys['uol'])**2
        elif keys['domain_shape'] == 'Parallelogram':
@@ -453,8 +453,9 @@ def getDomainArea(keys):
            return 0.5*np.sqrt(3)*(keys['pitch']*keys['uol'])**2
        elif keys['domain_shape'] == 'Circle':
            radius = keys['radius_particle']*keys['uol']
-           cd_radius_sq = keys['domain_area_ratio']*radius**2
-           return np.pi*cd_radius_sq
+           area_particle = np.pi* radius**2
+           cd_area = area_particle * keys['domain_area_ratio']
+           return cd_area
        else:
            raise ValueError("domain_shape {} not valid".format(keys['domain_shape']))
     return 0.0
@@ -679,7 +680,7 @@ def particleAbsorptionCrossSection(pps,keys,results,nk_data):
     Abs = {}
     grabPP(pps,PP_Absorption,Abs,['Quantity'])
     num_srcs = len(Abs['Quantity'])
-    sources =list(range(num_srcs))
+    sources = list(range(num_srcs))
     area_in = getDomainArea(keys)
     geometry_factor = getGeometryFactor(keys)
     if keys['incidence'] == 'FromAbove':
@@ -701,7 +702,7 @@ def particleScatteringCrossSection(pps,keys,results,nk_data):
     RT = {}
     grabPP(pps,PP_FluxIntegration,RT,['Flux'])
     num_srcs = len(RT['Flux'])
-    sources =list(range(num_srcs))
+    sources = list(range(num_srcs))
 
     area_in = getDomainArea(keys)
     geometry_factor = getGeometryFactor(keys)
