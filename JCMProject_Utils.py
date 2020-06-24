@@ -16,7 +16,7 @@ import os
 import pandas as pd
 import pdb
 # from warnings import warn
-from refractive_index_database import Spectrum, MaterialData
+from dispersion import Spectrum, Material
 Z0 = np.sqrt( constants.mu_0 / constants.epsilon_0 )
 
 # =============================================================================
@@ -42,7 +42,7 @@ def make_anti_reflex_layers(keys):
         n = nk1 + (nk2-nk1)*(step)/(nLayers+1)
         new_data = np.vstack([spectrum.values, n]).T
         mat_name = 'mat_AntiReflex_{}'.format(step)
-        keys[mat_name] = MaterialData(tabulated_n=new_data,unit='m')
+        keys[mat_name] = Material(tabulated_n=new_data,unit='m')
         t = total_thickness/nLayers
         height_name = 'height_AntiReflex_{}'.format(step)
         keys[height_name] = t
