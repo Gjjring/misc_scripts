@@ -602,6 +602,7 @@ def domainVolumes(pps,keys,results,nk_data):
     for domain in keys['Domains']:
         index = np.where( pp.DomainId == keys['Domains'][domain])
         if len(index[0]) == 0:
+            keys['Volume_{0}'.format(domain)] = 0.0
             continue
 
         if keys['Dimensionality'] == '2D':
@@ -622,6 +623,7 @@ def eFieldEnhancement(pps,keys,results,nk_data):
         for domain in keys['Domains']:
             index = np.where( pp.DomainId == keys['Domains'][domain])
             if len(index[0]) == 0:
+                results['EFieldEnergyEnhancement_{0}_{1}'.format(domain, i+1)] = 0.0
                 continue
             vol = keys['Volume_{}'.format(domain)]
             p_in = plane_wave_energy_in_volume(vol,np.real(nk_data[domain]))
