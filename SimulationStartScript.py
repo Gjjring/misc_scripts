@@ -127,7 +127,17 @@ def StartScript(args):
         elif args.Logs == 'delete':
             keepLogs =False
 
-        simuset = jpy.SimulationSet(project,keys,storage_folder =os.path.join(keys['constants']['storage_folder'],args.DataSetName),combination_mode=args.ParameterCombination,store_logs=keepLogs)
+        if "storage_base" in keys['constants']:
+            storage_base = keys['constants']['storage_base']
+        else:
+            storage_base = "from_config"
+
+        simuset = jpy.SimulationSet(project, keys,
+                                    storage_folder=os.path.join(keys['constants']['storage_folder'],args.DataSetName),
+                                    storage_base=storage_base,
+                                    combination_mode=args.ParameterCombination,
+                                    store_logs=keepLogs,
+                                    check_version_match=False)
         #combination_mode='list'
         simuset.make_simulation_schedule()
         resources = args.resource.split(";")
