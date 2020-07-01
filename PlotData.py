@@ -177,6 +177,7 @@ class Plotter(object):
         self.options['average_DVs'] = False
         self.options['sum_DVs'] = False
         self.options['plot_stacked'] = False
+        self.options['scaling_factor'] = None
         self.options['vmin'] = None
         self.options['vmax'] = None
         self.options['colorbar'] = True
@@ -636,6 +637,8 @@ class Plotter(object):
             #dep_var = self.variables['dependent'][index]
             sliced_vals = sliced_frame[name].values
             values = sliced_vals.reshape(self.dimensions['lengths'])
+            if self.options['scaling_factor'] is not None:
+                values *= self.options['scaling_factor']
             self.plot_data['arrays'][name] = values
 
 
