@@ -8,6 +8,7 @@ class PaperFormat:
     def __init__(self,**kwargs):
         self.Format = 'A4'
         self.Units = 'mm'
+        self.Orientation = 'Portrait'
         if kwargs is not None:
             for key, value in kwargs.items():
                 setattr(self,key,value)
@@ -25,7 +26,10 @@ class PaperFormat:
 
     def size(self):
         assert self.Format == 'A4'
-        size = (210,297)
+        if self.Orientation == "Portrait":
+            size = (210, 297)
+        elif self.Orientation == 'Landscape':
+            size = (297, 210)
 
         if self.Units != 'mm':
             size = self.convertunits(size,'mm',self.Units)

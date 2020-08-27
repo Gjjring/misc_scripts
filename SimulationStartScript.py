@@ -173,6 +173,7 @@ def StartScript(args):
             stop =  time.time()
             print("Time for all simulations: {}".format(stop-start))
         else:
+            print("solving sim {}".format(args.SingleSimulation))
             simuset.solve_single_simulation(int(args.SingleSimulation),
                                             processing_func=processing_function,
                                             wdir_mode=args.WDirMode)
