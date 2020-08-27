@@ -477,6 +477,16 @@ def writeRefractiveIndices(keys,results,nk_data):
         results[nname+'_n'] = np.real( nk_data[domain])
         results[nname+'_k'] = np.imag( nk_data[domain])
 
+def writeEigenfrequencies(pp, keys, results):
+    omega = pp['eigenvalues']['eigenmode'][0]
+    wavelength = 2*np.pi*constants.c/np.real(omega)
+    results['mode_wavelength'] = wavelength
+    if np.abs(np.imag(omega)) > 0.0:
+        results['mode_quality'] = np.real(omega)/(2*np.abs(np.imag(omega)))
+    else:
+        results['mode_quality'] = np.inf
+    
+
 def grabPP(pps,PP_Template,pp_dict,names):
     # For a list of post processes dictionaries, cycle through
     # to find post processes that can be formatted into the
@@ -744,8 +754,48 @@ def processing_function(pps, keys):
         return processing_function_scattering(pps,keys)
     elif keys['projectType'] == "smatrix":
         return processing_function_smatrix(pps,keys)
+    elif keys['projectType'] == "resonance":
+        return processing_function_resonance(pps,keys)
     else:
-        raise KeyError("keys[projectType] {} not a valid key".format(keys['[projectType']))
+        raise KeyError("keys[projectType] {} not a valid key".format(keys['projectType']))
+
+def processing_function_resonance(pps, keys):
+    results = {}
+
+    # Use key defaults for keys which are not provided
+    default_keys = {'min_mesh_angle' : 20.,
+                    'refine_all_circle' : 2,
+                    'uol' : 1.e-9,
+                    'pore_angle' : 0.,
+                    'info_level' : 10,
+                    'storage_format' : 'Binary',
+                    'fem_degree_min' : 1,
+                    'n_refinement_steps' : 0}
+    for dkey in default_keys:
+        if not dkey in keys:
+            keys[dkey] = default_keys[dkey]
+
+    # Refractive indices
+    wvl = keys['vacuum_wavelength']
+    nk_data = {}
+    for domain in keys['Domains'].keys():
+        nk_data[domain] = keys['mat_'+domain].get_nk_data(wvl)
+
+
+    if "writeParameters" in keys['PostProcesses']:
+        #print("writeParameters")
+        writeParameters(keys,results)
+
+    if "writeRefractiveIndices" in keys['PostProcesses']:
+        #print("writeRefractiveIndices")
+        writeRefractiveIndices(keys,results,nk_data)
+
+    if "writeEigenfrequencies" in keys['PostProcesses']:
+        #print("RTfromFT")
+        writeEigenfrequencies(pps[0], keys, results)
+
+    return results
+
 
 def processing_function_scattering(pps, keys):
     """returns the a dictionary with the results from jcm
