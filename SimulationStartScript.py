@@ -47,7 +47,7 @@ def StartScript(args):
     elif args.ProcessCCosts == 'False':
         args.ProcessCCosts = False
     assert( args.ParameterCombination == 'product' or args.ParameterCombination == 'list')
-
+    print(args)
     #print("args.ProcessCCosts:{}".format(args.ProcessCCosts))
     N = int(args.N)
     M = int(args.M)
@@ -72,6 +72,12 @@ def StartScript(args):
         if not os.path.isdir(keys['constants']['jones_matrix_storage_folder']):
             os.makedirs(keys['constants']['jones_matrix_storage_folder'])
 
+    if 'pml_log_folder' in keys['constants']:
+        keys['constants']['pml_log_folder'] += args.DataSetName
+        if not os.path.isdir(keys['constants']['pml_log_folder']):
+            os.makedirs(keys['constants']['pml_log_folder'])
+
+            
     #if not os.path.isdir(keys['constants']['spectra_storage_folder']):
     #    os.makedirs(keys['constants']['spectra_storage_folder'])
 
@@ -86,6 +92,7 @@ def StartScript(args):
     if args.test:
         import jcmwave as jcm
         fullprojectDir = _config.get('Data','projects') +'/'+ projectDir+'/'
+        simple_keys['sim_number'] = 0
         if args.geo_only:
             jcm.jcmt2jcm(fullprojectDir+'layout.jcmt',simple_keys)
             jcm.geo(fullprojectDir,simple_keys)
@@ -131,16 +138,27 @@ def StartScript(args):
             storage_base = keys['constants']['storage_base']
         else:
             storage_base = "from_config"
+        print("args.resource: {}".format(args.resource))
+        if ("transitional_storage_base" in keys['constants'] and
+            args.resource.startswith("z1")):
+            trans_storage_base = keys['constants']['transitional_storage_base']
+            print("setting trans storage base")
+        else:
+            trans_storage_base = None
 
+            
+            
         simuset = jpy.SimulationSet(project, keys,
                                     storage_folder=os.path.join(keys['constants']['storage_folder'],args.DataSetName),
+                                    transitional_storage_base=trans_storage_base,
                                     storage_base=storage_base,
                                     combination_mode=args.ParameterCombination,
                                     store_logs=keepLogs,
                                     check_version_match=False)
         #combination_mode='list'
         simuset.make_simulation_schedule()
-        resources = args.resource.split(";")
+        resources = args.resource.split(",")
+        print("resources: {}".format(resources))
         simuset.use_only_resources(resources)
         if N >0:
             simuset.resource_manager.resources.set_m_n_for_all(M,N)
@@ -151,7 +169,7 @@ def StartScript(args):
                     processing_func = processing_function,
                     pass_ccosts_to_processing_func=args.ProcessCCosts,
                     wdir_mode=args.WDirMode,
-                    auto_rerun_failed=0)
+                    auto_rerun_failed=1)
             stop =  time.time()
             print("Time for all simulations: {}".format(stop-start))
         else:

@@ -31,7 +31,33 @@ def getKeys(Name):
     except:
         raise IOError('Could not generate new keys file')
 
-
+def convert_keys(keys):
+    """takes a dictionary containing some or all of the three keys: constants,
+    parameters and geometry which are dictionaries containing values which may
+    be numpy arrays and returns a dictionary containing the keys contained in
+    the previous subdictionaries where each np.ndarray has been replaced with
+    the first entry in the array."""
+    correct_fields = ['constants', 'geometry', 'parameters']
+    loop_fields = ['geometry','parameters']
+    if set(correct_fields).isdisjoint(set(keys.keys())):
+        raise ValueError('`keys` must contain at least one of the keys .' +
+                         ' {} or all the keys '.format(loop_indication) +
+                         'necessary to compile the JCM-template files.')
+    new_keys = {}
+    for _k in correct_fields:
+        if _k in keys:
+            if not isinstance(keys[_k], dict):
+                raise ValueError('The values for the keys {}'.format(
+                                 loop_indication) + ' must be of type ' +
+                                 '`dict`')
+            subdict = keys[_k]
+            for _k2 in subdict:
+                if (isinstance(subdict[_k2],np.ndarray) or isinstance(subdict[_k2],list) ) and _k in loop_fields    :
+                    new_keys[_k2] = subdict[_k2][0]
+                else:
+                    new_keys[_k2] = subdict[_k2]
+            #new_keys[_k, keys[_k]]
+    return new_keys
 
 
 
