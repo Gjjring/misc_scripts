@@ -175,7 +175,8 @@ class Plotter(object):
         self.options['logDVs'] = False
         self.options['logy'] = False
         self.options['loglog'] = False
-        self.options['log_color'] = False
+        self.options['data_preprocess'] = None
+        #self.options['log_color'] = False
         self.options['average_polarization'] = False
         self.options['average_sliced'] = False
         self.options['average_DVs'] = False
@@ -237,13 +238,23 @@ class Plotter(object):
             else:
                 self.dimensions['vectors'][index] = vals
 
-    def exponentiate_devpars(self):
+    def exponentiate_data(self):
         for name in self.plot_data['arrays']:
             self.plot_data['arrays'][name] = np.power(10,self.plot_data['arrays'][name])
 
-    def log_devpars(self):
+    def root_data(self):
+        for name in self.plot_data['arrays']:
+            self.plot_data['arrays'][name] = np.sqrt(self.plot_data['arrays'][name])
+
+    def log_data(self):
         for name in self.plot_data['arrays']:
             self.plot_data['arrays'][name] = np.log10(self.plot_data['arrays'][name])
+
+    def apply_custom_preprocess(self):
+        func = self.options['data_preprocess']
+        for name in self.plot_data['arrays']:
+            self.plot_data['arrays'][name] = func(self.plot_data['arrays'][name])
+
 
     def _preprocess(self, aliases, axes_list):
         self.mpl_data['axes_list'] = []
@@ -265,10 +276,14 @@ class Plotter(object):
         if self.options['integrate_out_current']:
             self.convert_to_current()
 
+        if self.options['root_data']:
+            self.root_data()
+
         if self.options['exponentiateDVs']:
-            self.exponentiate_devpars()
+            self.exponentiate_data()
+
         if self.options['logDVs']:
-            self.log_devpars()
+            self.log_data()
 
         if self.options['average_independent_variables']:
             self.average_indepvars()
@@ -281,7 +296,12 @@ class Plotter(object):
         if len(self.plot_data['aliases']) == 0:
             self.make_aliases()
 
+        if self.options['data_preprocess'] is not None:
+            self.apply_custom_preprocess()
+
         self.setup_styles()
+
+
 
     def convert_to_current(self):
         keys = list(self.plot_data['arrays'].keys())
@@ -543,8 +563,8 @@ class Plotter(object):
             plt.sca(ax)
             label = self.plot_data['aliases'][name]
             data = self.plot_data['arrays'][name].T
-            if self.options['log_color']:
-                data = np.log10(data)
+            #if self.options['log_color']:
+            #    data = np.log10(data)
             X = self.dimensions['tensors']['X']
             Y = self.dimensions['tensors']['Y']
             mesh = plt.pcolormesh(X, Y, data[:-1, :-1],
@@ -572,8 +592,8 @@ class Plotter(object):
             plt.sca(ax)
             label = self.plot_data['aliases'][name]
             data = self.plot_data['arrays'][name].T
-            if self.options['log_color']:
-                data = np.log10(data)
+            #if self.options['log_color']:
+            #    data = np.log10(data)
             image = plt.imshow(data, extent=self.dimensions['extent'],
                                vmin=self.options['vmin'],
                                vmax=self.options['vmax'],
@@ -650,8 +670,6 @@ class Plotter(object):
             #dep_var = self.variables['dependent'][index]
             sliced_vals = sliced_frame[name].values
             values = sliced_vals.reshape(self.dimensions['lengths'])
-            if self.options['root_data']:
-                values = np.sqrt(values)
             if self.options['scaling_factor'] is not None:
                 values *= self.options['scaling_factor']
             self.plot_data['arrays'][name] = values
