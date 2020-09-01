@@ -139,12 +139,29 @@ class PP_FourierTransform(JCM_Post_Process):
         rt = np.sum(np.square(np.abs(self.E_strength)), axis=1)
         return np.sum(rt*cos_factor)
 
+    def get_reflection_specular(self, theta_rad):
+        """Returns the reflection. `theta_rad` is the incident angle in
+        radians!"""
+        cos_factor = self._cos_factor(theta_rad)
+        index = np.argwhere( (self.N1==0) & (self.N2==0)).flatten()[0]
+        rt = np.sum(np.square(np.abs(self.E_strength[index,:])), axis=1)
+        return np.sum(rt*cos_factor)
+
     def get_transmission(self, theta_rad, n_subspace, n_superspace):
         """Returns the transmission, which depends on the subspace and
         superspace refractive index. `theta_rad` is the incident angle in
         radians!"""
         cos_factor = self._cos_factor(theta_rad)
         rt = np.sum(np.square(np.abs(self.E_strength)), axis=1)
+        return np.sum(rt*cos_factor)*n_subspace/n_superspace
+
+    def get_transmission_direct(self, theta_rad, n_subspace, n_superspace):
+        """Returns the transmission, which depends on the subspace and
+        superspace refractive index. `theta_rad` is the incident angle in
+        radians!"""
+        cos_factor = self._cos_factor(theta_rad)
+        index = np.argwhere( (self.N1==0) & (self.N2==0)).flatten()[0]
+        rt = np.sum(np.square(np.abs(self.E_strength[index,:])), axis=1)
         return np.sum(rt*cos_factor)*n_subspace/n_superspace
 
 
@@ -485,7 +502,7 @@ def writeEigenfrequencies(pp, keys, results):
         results['mode_quality'] = np.real(omega)/(2*np.abs(np.imag(omega)))
     else:
         results['mode_quality'] = np.inf
-    
+
 
 def grabPP(pps,PP_Template,pp_dict,names):
     # For a list of post processes dictionaries, cycle through
@@ -543,11 +560,17 @@ def RTfromFT(pps,keys,results,nk_data):
         trans = RT['T'][i].get_transmission(theta_rad_in,
                                             n_subspace=n_out,
                                             n_superspace=n_in)
-        #index = np.where(fdis[i].DomainIdSecond==keys['Domains']['subspace'])
-        #trans = np.real(fdis[i].Flux[index])[0]/p_in
         # Save the results
         results['R_{0}'.format(i+1)] = refl
         results['T_{0}'.format(i+1)] = trans
+
+        refl = RT['R'][i].get_reflection_specular(theta_rad_in)
+        trans = RT['T'][i].get_transmission_direct(theta_rad_in,
+                                                   n_subspace=n_out,
+                                                   n_superspace=n_in)
+        # Save the results
+        results['R_specular_{0}'.format(i+1)] = refl
+        results['T_direct_{0}'.format(i+1)] = trans
 
 def RTfromFlux(pps,keys,results,nk_data):
     RT = {}
@@ -793,6 +816,9 @@ def processing_function_resonance(pps, keys):
     if "writeEigenfrequencies" in keys['PostProcesses']:
         #print("RTfromFT")
         writeEigenfrequencies(pps[0], keys, results)
+
+    if "NearField" in keys['PostProcesses']:
+        nearField(pps, keys, results, nk_data)
 
     return results
 
