@@ -144,8 +144,8 @@ class PP_FourierTransform(JCM_Post_Process):
         radians!"""
         cos_factor = self._cos_factor(theta_rad)
         index = np.argwhere( (self.N1==0) & (self.N2==0)).flatten()[0]
-        rt = np.sum(np.square(np.abs(self.E_strength[index,:])), axis=1)
-        return np.sum(rt*cos_factor)
+        rt = np.square(np.abs(self.E_strength[index,:]))
+        return np.sum(rt*cos_factor[index])
 
     def get_transmission(self, theta_rad, n_subspace, n_superspace):
         """Returns the transmission, which depends on the subspace and
@@ -161,8 +161,8 @@ class PP_FourierTransform(JCM_Post_Process):
         radians!"""
         cos_factor = self._cos_factor(theta_rad)
         index = np.argwhere( (self.N1==0) & (self.N2==0)).flatten()[0]
-        rt = np.sum(np.square(np.abs(self.E_strength[index,:])), axis=1)
-        return np.sum(rt*cos_factor)*n_subspace/n_superspace
+        rt = np.square(np.linalg.norm(self.E_strength[index,:]))
+        return np.sum(rt*cos_factor[index])*n_subspace/n_superspace
 
 
 class PP_DensityIntegration(JCM_Post_Process):
