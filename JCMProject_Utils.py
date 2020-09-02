@@ -782,6 +782,15 @@ def processing_function(pps, keys):
     else:
         raise KeyError("keys[projectType] {} not a valid key".format(keys['projectType']))
 
+def gather_nk_data(keys, wvl):
+    nk_data = {}
+    for domain in keys['Domains'].keys():
+        try:
+            nk_data[domain] = keys['mat_'+domain].get_nk_data(wvl)
+        except AttributeError:
+            nk_data[domain] = keys['mat_'+domain]
+    return nk_data
+
 def processing_function_resonance(pps, keys):
     results = {}
 
@@ -800,10 +809,7 @@ def processing_function_resonance(pps, keys):
 
     # Refractive indices
     wvl = keys['vacuum_wavelength']
-    nk_data = {}
-    for domain in keys['Domains'].keys():
-        nk_data[domain] = keys['mat_'+domain].get_nk_data(wvl)
-
+    nk_data = gather_nk_data(keys, wvl)
 
     if "writeParameters" in keys['PostProcesses']:
         #print("writeParameters")
@@ -843,10 +849,7 @@ def processing_function_scattering(pps, keys):
 
     # Refractive indices
     wvl = keys['vacuum_wavelength']
-    nk_data = {}
-    for domain in keys['Domains'].keys():
-        nk_data[domain] = keys['mat_'+domain].get_nk_data(wvl)
-
+    nk_data = gather_nk_data(keys, wvl)
 
     if "writeParameters" in keys['PostProcesses']:
         #print("writeParameters")
