@@ -183,6 +183,7 @@ class Plotter(object):
         self.options['sum_DVs'] = False
         self.options['plot_stacked'] = False
         self.options['scaling_factor'] = None
+        self.options['scale_IVs'] = 1.0
         self.options['root_data'] = False
         self.options['vmin'] = None
         self.options['vmax'] = None
@@ -548,8 +549,8 @@ class Plotter(object):
         ymax = np.max(y_data)
         X, Y = np.meshgrid(x_data, y_data)
         self.dimensions['tensors'] = {}
-        self.dimensions['tensors']['X'] = X
-        self.dimensions['tensors']['Y'] = Y
+        self.dimensions['tensors']['X'] = X*self.options['scale_IVs']
+        self.dimensions['tensors']['Y'] = Y*self.options['scale_IVs']
         self.dimensions['extent'] = (xmin, xmax, ymin, ymax)
 
     def plot_mesh(self):
