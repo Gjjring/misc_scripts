@@ -21,22 +21,22 @@ from Current import getCurrent_trapz
 import matplotlib.pyplot as plt
 from cycler import cycler
 plt.rcParams['image.cmap'] = 'magma'
-plt.rcParams['axes.titlesize'] = 20
-plt.rcParams['axes.labelsize'] = 20
-plt.rcParams['lines.linewidth'] = 2
-plt.rcParams['xtick.labelsize'] = 16
-plt.rcParams['ytick.labelsize'] = 16
+#plt.rcParams['axes.titlesize'] = 20
+#plt.rcParams['axes.labelsize'] = 20
+#plt.rcParams['lines.linewidth'] = 2
+#plt.rcParams['xtick.labelsize'] = 16
+#plt.rcParams['ytick.labelsize'] = 16
 
 from matplotlib import cm
 from cycler import cycler
 Dark2 = cm.get_cmap('Dark2', 12)
-Paired = cm.get_cmap('Paired',12)
+Paired = cm.get_cmap('Paired', 12)
 colors = []
 #for row in [0,2,3,5,6,7,9,10]:
     #colors.append(Dark2.colors[row,:])
 for row in range(8):
-    colors.append(Paired.colors[row,:])
-plt.rcParams['axes.prop_cycle'] = cycler('color',colors)
+    colors.append(Paired.colors[row, :])
+plt.rcParams['axes.prop_cycle'] = cycler('color', colors)
 
 
 parser = argparse.ArgumentParser(description='plot simulations that have been run')
@@ -136,7 +136,7 @@ def gaussian(wavelengths,peak,fwhm):
 
 class Plotter(object):
 
-    def __init__(self,filename,aliases=None):
+    def __init__(self, filename, aliases=None):
         self.filename = filename
         self.load_data()
         self.variables = {}
@@ -165,6 +165,9 @@ class Plotter(object):
         self.mpl_data['colors'] = {}
         self.mpl_data['user_line_styles'] = {}
         self.mpl_data['user_colors'] = {}
+        self.mpl_data['user_colormap'] = "magma"
+        self.mpl_data['colorbar'] = None
+        self.mpl_data['mappables'] = {}
 
         self.options = {}
         self.options['expand_sources'] = False
@@ -172,12 +175,15 @@ class Plotter(object):
         self.options['logDVs'] = False
         self.options['logy'] = False
         self.options['loglog'] = False
+        self.options['data_preprocess'] = None
+        #self.options['log_color'] = False
         self.options['average_polarization'] = False
         self.options['average_sliced'] = False
         self.options['average_DVs'] = False
         self.options['sum_DVs'] = False
         self.options['plot_stacked'] = False
         self.options['scaling_factor'] = None
+        self.options['root_data'] = False
         self.options['vmin'] = None
         self.options['vmax'] = None
         self.options['colorbar'] = True
@@ -233,13 +239,23 @@ class Plotter(object):
             else:
                 self.dimensions['vectors'][index] = vals
 
-    def exponentiate_devpars(self):
+    def exponentiate_data(self):
         for name in self.plot_data['arrays']:
             self.plot_data['arrays'][name] = np.power(10,self.plot_data['arrays'][name])
 
-    def log_devpars(self):
+    def root_data(self):
+        for name in self.plot_data['arrays']:
+            self.plot_data['arrays'][name] = np.sqrt(self.plot_data['arrays'][name])
+
+    def log_data(self):
         for name in self.plot_data['arrays']:
             self.plot_data['arrays'][name] = np.log10(self.plot_data['arrays'][name])
+
+    def apply_custom_preprocess(self):
+        func = self.options['data_preprocess']
+        for name in self.plot_data['arrays']:
+            self.plot_data['arrays'][name] = func(self.plot_data['arrays'][name])
+
 
     def _preprocess(self, aliases, axes_list):
         self.mpl_data['axes_list'] = []
@@ -261,10 +277,14 @@ class Plotter(object):
         if self.options['integrate_out_current']:
             self.convert_to_current()
 
+        if self.options['root_data']:
+            self.root_data()
+
         if self.options['exponentiateDVs']:
-            self.exponentiate_devpars()
+            self.exponentiate_data()
+
         if self.options['logDVs']:
-            self.log_devpars()
+            self.log_data()
 
         if self.options['average_independent_variables']:
             self.average_indepvars()
@@ -277,7 +297,12 @@ class Plotter(object):
         if len(self.plot_data['aliases']) == 0:
             self.make_aliases()
 
+        if self.options['data_preprocess'] is not None:
+            self.apply_custom_preprocess()
+
         self.setup_styles()
+
+
 
     def convert_to_current(self):
         keys = list(self.plot_data['arrays'].keys())
@@ -521,11 +546,11 @@ class Plotter(object):
         xmax = np.max(x_data)
         ymin = np.min(y_data)
         ymax = np.max(y_data)
-        X,Y = np.meshgrid(x_data,y_data)
+        X, Y = np.meshgrid(x_data, y_data)
         self.dimensions['tensors'] = {}
         self.dimensions['tensors']['X'] = X
         self.dimensions['tensors']['Y'] = Y
-        self.dimensions['extent'] = (xmin,xmax,ymin,ymax)
+        self.dimensions['extent'] = (xmin, xmax, ymin, ymax)
 
     def plot_mesh(self):
         axes_iter = 0
@@ -539,15 +564,19 @@ class Plotter(object):
             plt.sca(ax)
             label = self.plot_data['aliases'][name]
             data = self.plot_data['arrays'][name].T
+            #if self.options['log_color']:
+            #    data = np.log10(data)
             X = self.dimensions['tensors']['X']
             Y = self.dimensions['tensors']['Y']
-            plt.pcolormesh(X,Y,data[:-1,:-1],
-                       vmin=self.options['vmin'],
-                       vmax=self.options['vmax'])
+            mesh = plt.pcolormesh(X, Y, data[:-1, :-1],
+                                 vmin=self.options['vmin'],
+                                 vmax=self.options['vmax'],
+                                 cmap=self.mpl_data['user_colormap'])
+            self.mpl_data['mappables'][name] = mesh
             self.dimension_label('x')
             self.dimension_label('y')
             if self.options['colorbar']:
-                plt.colorbar()
+                self.mpl_data['colorbar'] = plt.colorbar()
             plt.title(label)
             axes_iter += 1
 
@@ -564,14 +593,18 @@ class Plotter(object):
             plt.sca(ax)
             label = self.plot_data['aliases'][name]
             data = self.plot_data['arrays'][name].T
-            plt.imshow(data,extent=self.dimensions['extent'],
-                       vmin=self.options['vmin'],
-                       vmax=self.options['vmax'],
-                       origin='lower')
+            #if self.options['log_color']:
+            #    data = np.log10(data)
+            image = plt.imshow(data, extent=self.dimensions['extent'],
+                               vmin=self.options['vmin'],
+                               vmax=self.options['vmax'],
+                               cmap=self.mpl_data['user_colormap'],
+                               origin='lower')
+            self.mpl_data['mappables'][name] = image
             self.dimension_label('x')
             self.dimension_label('y')
             if self.options['colorbar']:
-                plt.colorbar()
+                self.mpl_data['colorbar'] = plt.colorbar()
             plt.title(label)
             axes_iter += 1
 
@@ -603,7 +636,7 @@ class Plotter(object):
         #self.dimension_lengths = []
         for index,indep_var in enumerate(self.variables['independent']):
             dimension_values = self.data_frame[indep_var].values
-            unique_values = np.unique(np.round(dimension_values,9))
+            unique_values = np.unique(np.round(dimension_values, 12))
             unique_values = unique_values[~np.isnan(unique_values)]
             self.dimensions['vectors'].append( np.array(unique_values))
             self.dimensions['lengths'].append(unique_values.size)
@@ -654,7 +687,7 @@ class Plotter(object):
             else:
                 data_frame = data_frame[np.isclose(data_frame[sliced_var],
                                                    value,
-                                                   rtol=1e-12,atol=1e-20)]
+                                                   rtol=1e-12, atol=1e-20)]
         for indep_var in self.variables['independent']:
             data_frame = data_frame[~ np.isnan(data_frame[indep_var])]
 

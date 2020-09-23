@@ -139,6 +139,14 @@ class PP_FourierTransform(JCM_Post_Process):
         rt = np.sum(np.square(np.abs(self.E_strength)), axis=1)
         return np.sum(rt*cos_factor)
 
+    def get_reflection_specular(self, theta_rad):
+        """Returns the reflection. `theta_rad` is the incident angle in
+        radians!"""
+        cos_factor = self._cos_factor(theta_rad)
+        index = np.argwhere( (self.N1==0) & (self.N2==0)).flatten()[0]
+        rt = np.square(np.abs(self.E_strength[index,:]))
+        return np.sum(rt*cos_factor[index])
+
     def get_transmission(self, theta_rad, n_subspace, n_superspace):
         """Returns the transmission, which depends on the subspace and
         superspace refractive index. `theta_rad` is the incident angle in
@@ -146,6 +154,15 @@ class PP_FourierTransform(JCM_Post_Process):
         cos_factor = self._cos_factor(theta_rad)
         rt = np.sum(np.square(np.abs(self.E_strength)), axis=1)
         return np.sum(rt*cos_factor)*n_subspace/n_superspace
+
+    def get_transmission_direct(self, theta_rad, n_subspace, n_superspace):
+        """Returns the transmission, which depends on the subspace and
+        superspace refractive index. `theta_rad` is the incident angle in
+        radians!"""
+        cos_factor = self._cos_factor(theta_rad)
+        index = np.argwhere( (self.N1==0) & (self.N2==0)).flatten()[0]
+        rt = np.square(np.linalg.norm(self.E_strength[index,:]))
+        return np.sum(rt*cos_factor[index])*n_subspace/n_superspace
 
 
 class PP_DensityIntegration(JCM_Post_Process):
@@ -477,6 +494,16 @@ def writeRefractiveIndices(keys,results,nk_data):
         results[nname+'_n'] = np.real( nk_data[domain])
         results[nname+'_k'] = np.imag( nk_data[domain])
 
+def writeEigenfrequencies(pp, keys, results):
+    omega = pp['eigenvalues']['eigenmode'][0]
+    wavelength = 2*np.pi*constants.c/np.real(omega)
+    results['mode_wavelength'] = wavelength
+    if np.abs(np.imag(omega)) > 0.0:
+        results['mode_quality'] = np.real(omega)/(2*np.abs(np.imag(omega)))
+    else:
+        results['mode_quality'] = np.inf
+
+
 def grabPP(pps,PP_Template,pp_dict,names):
     # For a list of post processes dictionaries, cycle through
     # to find post processes that can be formatted into the
@@ -533,11 +560,17 @@ def RTfromFT(pps,keys,results,nk_data):
         trans = RT['T'][i].get_transmission(theta_rad_in,
                                             n_subspace=n_out,
                                             n_superspace=n_in)
-        #index = np.where(fdis[i].DomainIdSecond==keys['Domains']['subspace'])
-        #trans = np.real(fdis[i].Flux[index])[0]/p_in
         # Save the results
         results['R_{0}'.format(i+1)] = refl
         results['T_{0}'.format(i+1)] = trans
+
+        refl = RT['R'][i].get_reflection_specular(theta_rad_in)
+        trans = RT['T'][i].get_transmission_direct(theta_rad_in,
+                                                   n_subspace=n_out,
+                                                   n_superspace=n_in)
+        # Save the results
+        results['R_specular_{0}'.format(i+1)] = refl
+        results['T_direct_{0}'.format(i+1)] = trans
 
 def RTfromFlux(pps,keys,results,nk_data):
     RT = {}
@@ -744,8 +777,57 @@ def processing_function(pps, keys):
         return processing_function_scattering(pps,keys)
     elif keys['projectType'] == "smatrix":
         return processing_function_smatrix(pps,keys)
+    elif keys['projectType'] == "resonance":
+        return processing_function_resonance(pps,keys)
     else:
-        raise KeyError("keys[projectType] {} not a valid key".format(keys['[projectType']))
+        raise KeyError("keys[projectType] {} not a valid key".format(keys['projectType']))
+
+def gather_nk_data(keys, wvl):
+    nk_data = {}
+    for domain in keys['Domains'].keys():
+        try:
+            nk_data[domain] = keys['mat_'+domain].get_nk_data(wvl)
+        except AttributeError:
+            nk_data[domain] = keys['mat_'+domain]
+    return nk_data
+
+def processing_function_resonance(pps, keys):
+    results = {}
+
+    # Use key defaults for keys which are not provided
+    default_keys = {'min_mesh_angle' : 20.,
+                    'refine_all_circle' : 2,
+                    'uol' : 1.e-9,
+                    'pore_angle' : 0.,
+                    'info_level' : 10,
+                    'storage_format' : 'Binary',
+                    'fem_degree_min' : 1,
+                    'n_refinement_steps' : 0}
+    for dkey in default_keys:
+        if not dkey in keys:
+            keys[dkey] = default_keys[dkey]
+
+    # Refractive indices
+    wvl = keys['vacuum_wavelength']
+    nk_data = gather_nk_data(keys, wvl)
+
+    if "writeParameters" in keys['PostProcesses']:
+        #print("writeParameters")
+        writeParameters(keys,results)
+
+    if "writeRefractiveIndices" in keys['PostProcesses']:
+        #print("writeRefractiveIndices")
+        writeRefractiveIndices(keys,results,nk_data)
+
+    if "writeEigenfrequencies" in keys['PostProcesses']:
+        #print("RTfromFT")
+        writeEigenfrequencies(pps[0], keys, results)
+
+    if "NearField" in keys['PostProcesses']:
+        nearField(pps, keys, results, nk_data)
+
+    return results
+
 
 def processing_function_scattering(pps, keys):
     """returns the a dictionary with the results from jcm
@@ -767,10 +849,7 @@ def processing_function_scattering(pps, keys):
 
     # Refractive indices
     wvl = keys['vacuum_wavelength']
-    nk_data = {}
-    for domain in keys['Domains'].keys():
-        nk_data[domain] = keys['mat_'+domain].get_nk_data(wvl)
-
+    nk_data = gather_nk_data(keys, wvl)
 
     if "writeParameters" in keys['PostProcesses']:
         #print("writeParameters")
