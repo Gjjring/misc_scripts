@@ -549,8 +549,8 @@ class Plotter(object):
         ymax = np.max(y_data)
         X, Y = np.meshgrid(x_data, y_data)
         self.dimensions['tensors'] = {}
-        self.dimensions['tensors']['X'] = X*self.options['scale_IVs']
-        self.dimensions['tensors']['Y'] = Y*self.options['scale_IVs']
+        self.dimensions['tensors']['X'] = X
+        self.dimensions['tensors']['Y'] = Y
         self.dimensions['extent'] = (xmin, xmax, ymin, ymax)
 
     def plot_mesh(self):
@@ -638,7 +638,7 @@ class Plotter(object):
         for index,indep_var in enumerate(self.variables['independent']):
             dimension_values = self.data_frame[indep_var].values
             unique_values = np.unique(np.round(dimension_values, 12))
-            unique_values = unique_values[~np.isnan(unique_values)]
+            unique_values = unique_values[~np.isnan(unique_values)]*self.options['scale_IVs']
             self.dimensions['vectors'].append( np.array(unique_values))
             self.dimensions['lengths'].append(unique_values.size)
             self.dimensions['names'].append(indep_var)
