@@ -187,6 +187,7 @@ class Plotter(object):
         self.options['integrate_out_current'] = False
         self.options['plot_mesh'] = False
         self.options['average_independent_variables'] = False
+        self.options['user_preprocess'] = None
         self.make_dimensions()
 
         #self.make_array_names()
@@ -639,6 +640,8 @@ class Plotter(object):
             values = sliced_vals.reshape(self.dimensions['lengths'])
             if self.options['scaling_factor'] is not None:
                 values *= self.options['scaling_factor']
+            if self.options['user_preprocess'] is not None:
+                values = self.options['user_preprocess'](values)
             self.plot_data['arrays'][name] = values
 
 
