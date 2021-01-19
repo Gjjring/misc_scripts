@@ -17,7 +17,7 @@ def getParser():
     parser.add_argument('--test',action="store_true",help='test the first simulation in the simuset and print the output')
     parser.add_argument('--geo_only',action="store_true",help='test only the meshing')
     parser.add_argument('--convergence',default=None,help='run a convergence test')
-    parser.add_argument('--N',default=8,help='number of threads per process')
+    parser.add_argument('--N',default=-1,help='number of threads per process')
     parser.add_argument('--M',default=8,help='multiplicity of threads')
     parser.add_argument('--resource',default='htc027',help='default resource to use')
     parser.add_argument('--project',default='fromLocalFile',help='name of the pypmj project, defulat takes value from a local file called projectname.txt')
@@ -156,12 +156,12 @@ def StartScript(args):
                                     store_logs=keepLogs,
                                     check_version_match=False)
         #combination_mode='list'
-        simuset.make_simulation_schedule()
         resources = args.resource.split(",")
         print("resources: {}".format(resources))
         simuset.use_only_resources(resources)
         if N >0:
             simuset.resource_manager.resources.set_m_n_for_all(M,N)
+        simuset.make_simulation_schedule()
         import time
         start = time.time()
         if args.SingleSimulation == -1:
@@ -169,7 +169,7 @@ def StartScript(args):
                     processing_func = processing_function,
                     pass_ccosts_to_processing_func=args.ProcessCCosts,
                     wdir_mode=args.WDirMode,
-                    auto_rerun_failed=1)
+                    auto_rerun_failed=0)
             stop =  time.time()
             print("Time for all simulations: {}".format(stop-start))
         else:

@@ -147,6 +147,14 @@ class PP_FourierTransform(JCM_Post_Process):
         rt = np.square(np.abs(self.E_strength[index,:]))
         return np.sum(rt*cos_factor[index])
 
+    def get_reflection_orders(self, theta_rad, order1, order2):
+        """Returns the reflection. `theta_rad` is the incident angle in
+        radians!"""
+        cos_factor = self._cos_factor(theta_rad)
+        index = np.argwhere( (self.N1==order1) & (self.N2==order2)).flatten()[0]
+        rt = np.square(np.abs(self.E_strength[index,:]))
+        return np.sum(rt*cos_factor[index])
+
     def get_transmission(self, theta_rad, n_subspace, n_superspace):
         """Returns the transmission, which depends on the subspace and
         superspace refractive index. `theta_rad` is the incident angle in
@@ -163,6 +171,16 @@ class PP_FourierTransform(JCM_Post_Process):
         index = np.argwhere( (self.N1==0) & (self.N2==0)).flatten()[0]
         rt = np.square(np.linalg.norm(self.E_strength[index,:]))
         return np.sum(rt*cos_factor[index])*n_subspace/n_superspace
+
+    def get_transmission_orders(self, theta_rad, n_subspace, n_superspace,
+                                order1, order2):
+        """Returns the transmission, which depends on the subspace and
+        superspace refractive index. `theta_rad` is the incident angle in
+        radians!"""
+        cos_factor = self._cos_factor(theta_rad)
+        index = np.argwhere( (self.N1==order1) & (self.N2==order2)).flatten()[0]
+        rt = np.square(np.linalg.norm(self.E_strength[index,:]))
+        return np.sum(rt*cos_factor[index])*n_subspace/n_superspace    
 
 
 class PP_DensityIntegration(JCM_Post_Process):
@@ -299,7 +317,7 @@ class PP_ExportField(JCM_Post_Process):
     STD_KEYS = ['X', 'Y', 'Z','field','grid']
     SRC_IDENTIFIER = 'field'
 
-    def __init__(self, jcm_dict, i_src=0, quantity='ElectricFieldStength' ):
+    def __init__(self, jcm_dict, i_src=0, quantity='ElectricFieldEnergyDensity' ):
         jcm_dict['title'] = quantity
         JCM_Post_Process.__init__(self, jcm_dict, i_src=i_src)
 
@@ -341,7 +359,6 @@ class PP_ExportField(JCM_Post_Process):
         df_dict['X'] = self.X.flatten()
         df_dict['Y'] = self.Y.flatten()
         df_dict['Z'] = self.Z.flatten()
-        #df_dict['domainId'] = self.domains
         df_dict['field_x_real'] = np.real(self.field[:,:,0].flatten())
         df_dict['field_x_imag'] = np.imag(self.field[:,:,0].flatten())
         df_dict['field_y_real'] = np.real(self.field[:,:,1].flatten())
@@ -361,20 +378,28 @@ class PP_ExportField(JCM_Post_Process):
         filename = "{}_{}.csv".format(dataset_name,suffix)
         full_file = os.path.join(base_folder,filename)
         data_length = self.X.flatten().size
-
         df_dict = {}
         df_dict['X'] = self.X.flatten()
         df_dict['Y'] = self.Y.flatten()
         df_dict['Z'] = self.Z.flatten()
+        #df_dict['domain_Id'] = self.domains.flatten()
         #df_dict['domainId'] = self.domains
-        df_dict['field_x_real'] = np.real(self.field[:,:,0].flatten())
-        df_dict['field_x_imag'] = np.imag(self.field[:,:,0].flatten())
-        df_dict['field_y_real'] = np.real(self.field[:,:,1].flatten())
-        df_dict['field_y_imag'] = np.imag(self.field[:,:,1].flatten())
-        df_dict['field_z_real'] = np.real(self.field[:,:,2].flatten())
-        df_dict['field_z_imag'] = np.imag(self.field[:,:,2].flatten())
-        df_dict['field_norm'] = np.linalg.norm(np.abs(self.field),axis=2).flatten()
+        is_vector = False
+        if is_vector:
+            df_dict['field_x_real'] = np.real(self.field[...,0].flatten())
+            df_dict['field_x_imag'] = np.imag(self.field[...,0].flatten())
+            df_dict['field_y_real'] = np.real(self.field[...,1].flatten())
+            df_dict['field_y_imag'] = np.imag(self.field[...,1].flatten())
+            df_dict['field_z_real'] = np.real(self.field[...,2].flatten())
+            df_dict['field_z_imag'] = np.imag(self.field[...,2].flatten())
+            df_dict['field_norm'] = np.linalg.norm(np.abs(self.field),axis=-1).flatten()
+        else:
+            #df_dict['field_real'] = np.real(self.field).flatten()
+            #df_dict['field_imag'] = np.imag(self.field).flatten()
+            df_dict['field_norm'] = np.abs(self.field).flatten()
 
+        for key, val in df_dict.items():
+            print("{}:{}".format(key, val.shape))
         df = pd.DataFrame.from_dict(df_dict)
 
         if ("polarization" in keys and
@@ -388,7 +413,7 @@ class PP_ExportField(JCM_Post_Process):
         for identifier in keys['NearFieldIdentifiers']:
             df[identifier] = keys[identifier]
 
-
+        
         if os.path.isfile(full_file):
             df_current = pd.read_csv(full_file)
             df = pd.concat([df_current,df])
@@ -520,7 +545,6 @@ def grabPP(pps,PP_Template,pp_dict,names):
 
         except (KeyError, ValueError) as e:
             pass
-
     assert names[0] in pp_dict
 
 def iterate_sources_for_pp(pp, class_):
@@ -553,6 +577,11 @@ def RTfromFT(pps,keys,results,nk_data):
     num_srcs = len(RT['R'])
     sources =list(range(num_srcs))
     theta_rad_in = np.radians(keys['theta'])
+    if keys['exterior_refraction']:
+        wvl = keys['vacuum_wavelength']
+        n_exterior = np.real(keys['mat_exterior'].get_nk_data(wvl))
+        arg = np.sin(np.radians(theta_rad_in))*n_exterior/n_in
+        theta_rad_in = np.degrees( np.arcsin( arg))
     for i in sources:
         # Reflection and transmission is calculated by the get_refl_trans
         # of the PP_FourierTransform class
@@ -761,10 +790,13 @@ def particleScatteringCrossSection(pps,keys,results,nk_data):
 
 
 def nearField(pps, keys, results, nk_data):
-    Field = {}
-    fields = ['FieldXZ', 'FieldYZ', 'FieldXY']
+    Field = {}    
+    if keys['near_field_planes']:
+        fields = ['FieldXZ', 'FieldYZ', 'FieldXY']
+    else:
+        fields = ['FieldAll']
     grabPP(pps,PP_ExportField,Field,fields)
-    num_srcs = len(Field['FieldXZ'])
+    num_srcs = len(Field[fields[0]]) # too many fields?!?
     sources =list(range(num_srcs))
     for field in fields:
         for i in sources:
@@ -802,7 +834,9 @@ def processing_function_resonance(pps, keys):
                     'info_level' : 10,
                     'storage_format' : 'Binary',
                     'fem_degree_min' : 1,
-                    'n_refinement_steps' : 0}
+                    'n_refinement_steps' : 0,
+                    'near_field_planes':True,
+                    'exterior_refraction':False}
     for dkey in default_keys:
         if not dkey in keys:
             keys[dkey] = default_keys[dkey]
@@ -842,7 +876,9 @@ def processing_function_scattering(pps, keys):
                     'info_level' : 10,
                     'storage_format' : 'Binary',
                     'fem_degree_min' : 1,
-                    'n_refinement_steps' : 0}
+                    'n_refinement_steps' : 0,
+                    'near_field_planes':True,
+                    'exterior_refraction':False}
     for dkey in default_keys:
         if not dkey in keys:
             keys[dkey] = default_keys[dkey]
