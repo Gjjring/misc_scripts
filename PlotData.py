@@ -21,11 +21,11 @@ from Current import getCurrent_trapz
 import matplotlib.pyplot as plt
 from cycler import cycler
 plt.rcParams['image.cmap'] = 'magma'
-#plt.rcParams['axes.titlesize'] = 20
-#plt.rcParams['axes.labelsize'] = 20
-#plt.rcParams['lines.linewidth'] = 2
-#plt.rcParams['xtick.labelsize'] = 16
-#plt.rcParams['ytick.labelsize'] = 16
+plt.rcParams['axes.titlesize'] = 20
+plt.rcParams['axes.labelsize'] = 20
+plt.rcParams['lines.linewidth'] = 2
+plt.rcParams['xtick.labelsize'] = 16
+plt.rcParams['ytick.labelsize'] = 16
 
 from matplotlib import cm
 from cycler import cycler
@@ -184,6 +184,8 @@ class Plotter(object):
         self.options['plot_stacked'] = False
         self.options['scaling_factor'] = None
         self.options['scale_IVs'] = 1.0
+        self.options['shift_IVs'] = {}
+        self.options['pre_process_IVs'] = {}
         self.options['root_data'] = False
         self.options['vmin'] = None
         self.options['vmax'] = None
@@ -639,6 +641,10 @@ class Plotter(object):
             dimension_values = self.data_frame[indep_var].values
             unique_values = np.unique(np.round(dimension_values, 12))
             unique_values = unique_values[~np.isnan(unique_values)]*self.options['scale_IVs']
+            if indep_var in self.options['shift_IVs']:
+                unique_values += self.options['shift_IVs'][indep_var]
+            if indep_var in self.options['pre_process_IVs']:
+                unique_values = self.options['pre_process_IVs'][indep_var](unique_values)
             self.dimensions['vectors'].append( np.array(unique_values))
             self.dimensions['lengths'].append(unique_values.size)
             self.dimensions['names'].append(indep_var)
