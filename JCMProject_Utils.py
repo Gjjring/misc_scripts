@@ -680,7 +680,14 @@ def eFieldEnhancement(pps,keys,results,nk_data):
     grabPP(pps,PP_ElectricFieldEnhancement,eFieldEnergy,['Quantity'])
     num_srcs = len(eFieldEnergy['Quantity'])
     sources =list(range(num_srcs))
-    p_in = 1.0
+    if 'NormaliseEFieldEnhancement' not in keys:
+        keys['NormaliseEFieldEnhancement'] = True
+    if keys['NormaliseEFieldEnhancement']:
+        if keys['incidence'] == 'FromAbove':
+            domain_name_in = 'superspace'
+        elif keys['incidence'] == 'FromBelow':
+            domain_name_in = 'subspace'
+        eps_in = np.power(np.real(nk_data[domain_name_in]),2)
     for i in sources:
         pp = eFieldEnergy['Quantity'][i]
         for domain in keys['Domains']:
@@ -688,9 +695,13 @@ def eFieldEnhancement(pps,keys,results,nk_data):
             if len(index[0]) == 0:
                 results['EFieldEnergyEnhancement_{0}_{1}'.format(domain, i+1)] = 0.0
                 continue
-            vol = keys['Volume_{}'.format(domain)]
-            p_in = plane_wave_energy_in_volume(vol,np.real(nk_data[domain]))
-            efieldEnergy = np.real(pp.Quantity[index][0])/p_in
+            if keys['NormaliseEFieldEnhancement']:
+                vol = keys['Volume_{}'.format(domain)]
+                eps = np.power(np.real(nk_data[domain]),2)
+                p_in = (eps_in/eps)*plane_wave_energy_in_volume(vol,np.real(nk_data[domain]))
+                efieldEnergy = np.real(pp.Quantity[index][0])/p_in
+            else:
+                efieldEnergy = np.real(pp.Quantity[index][0])/constants.epsilon_0
             results['EFieldEnergyEnhancement_{0}_{1}'.format(domain,i+1)] = efieldEnergy
 
 def energyConservation(pps,keys,results,nk_data):
@@ -856,6 +867,10 @@ def processing_function_resonance(pps, keys):
     if "writeEigenfrequencies" in keys['PostProcesses']:
         #print("RTfromFT")
         writeEigenfrequencies(pps[0], keys, results)
+
+    if "ElectricFieldEnhancement" in keys['PostProcesses']:
+        domainVolumes(pps,keys,results,nk_data)
+        eFieldEnhancement(pps,keys,results,nk_data)
 
     if "NearField" in keys['PostProcesses']:
         nearField(pps, keys, results, nk_data)
